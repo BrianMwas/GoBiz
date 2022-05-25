@@ -15,7 +15,12 @@ import (
 func main() {
 	log.SetFormatter(&log.TextFormatter{})
 
-	listener, err := net.Listen("tcp", ":9100")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "9100"
+	}
+
+	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"new error": err,
