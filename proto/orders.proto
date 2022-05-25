@@ -1,30 +1,27 @@
 syntax = "proto3";
 
-option go_package="orders/pb";
+option go_package="internal/orders/pb";
 
-enum OrderStatus {
-  processing = 0;
-  transit = 1;
-  delivered = 2;
-  cancelled = 3;
-}
 
 message Order {
-  string id = 1;
-  OrderStatus status = 2;
+  optional string id = 1;
+  string status = 2;
   repeated Product items = 3;
-  int64 deliveryDate = 4;
-  int64 createdAt = 5;
+  optional int64 deliveryDate = 4;
+  string orderNo = 6;
+  string customerId = 7;
 }
 
 message Product {
-  string id = 1;
+  optional string id = 1;
   double price = 2;
-  double name = 3;
+  string name = 3;
+  optional string description = 4;
+  string sku = 5;
 }
 
 message Customer {
-  string id = 1;
+  optional string id = 1;
   string name = 2;
   Location location = 3;
 }
@@ -35,7 +32,7 @@ message Location {
 }
 
 message OrderStatusUpdate {
-  OrderStatus status = 1;
+  string status = 1;
   string orderId = 2;
 }
 
@@ -52,18 +49,18 @@ message CreateOrderRes {
   Order order = 1;
 }
 
-message GetOrderDetailsReq {
-  string id =1;
+message GetOrdersReq {
+  optional string customerId =1;
 }
 
-message GetOrderDetailsRes {
-  Order order = 1;
+message GetOrdersRes {
+  repeated Order orders = 1;
 }
 
 message CreateCustomerReq {
-  string Name = 1;
-  int32 lat = 2;
-  int32 lon = 3;
+  string name = 1;
+  float lat = 2;
+  float lon = 3;
 }
 
 message CreateCustomerRes {
@@ -72,7 +69,7 @@ message CreateCustomerRes {
 }
 
 message UpdateOrderStatusReq {
-  OrderStatus status = 1;
+  string status = 1;
   string id = 2;
 }
 
@@ -90,7 +87,7 @@ message UpdateOrderRes {
 }
 
 service Orders {
-  rpc GetOrderDetails(GetOrderDetailsReq) returns (GetOrderDetailsRes) {}
+  rpc GetOrders(GetOrdersReq) returns (GetOrdersRes) {}
   rpc CreateOrder(CreateOrderReq) returns (CreateOrderRes) {}
   rpc CreateCustomer(CreateCustomerReq) returns (CreateCustomerRes) {}
   rpc UpdateOrderStatus(UpdateOrderStatusReq) returns (UpdateOrderStatusRes) {}

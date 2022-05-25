@@ -1,16 +1,16 @@
 package db
 
 import (
+	"awesomeProject/pkg/utils"
 	"context"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"sync"
 	"time"
 )
-
-type KeyValue map[string]interface{}
 
 type MongoStore struct {
 	db      *mongo.Database
@@ -28,15 +28,19 @@ func connectMongo(uri string) (*mongo.Client, error) {
 	return client, err
 }
 
-func (c *MongoStore) Insert(collectionName string, document interface{}) error {
+func (c *MongoStore) Insert(collectionName string, document interface{}) (string, error) {
 	collection := c.db.Collection(collectionName)
-	_, err := collection.InsertOne(c.Context, document)
-	return err
+	result, err := collection.InsertOne(c.Context, document)
+	if err != nil {
+		return "", err
+	}
+	// Convert the inserted id into a string
+	return result.InsertedID.(primitive.ObjectID).String(), nil
 }
 
 func (c *MongoStore) UpdateOne(
 	collectionName string,
-	filter KeyValue,
+	filter utils.KeyValue,
 	document interface{},
 	opt options.UpdateOptions) error {
 	collection := c.db.Collection(collectionName)
@@ -44,14 +48,14 @@ func (c *MongoStore) UpdateOne(
 	return err
 }
 
-func (c *MongoStore) Get(collectionName string, filter KeyValue, document interface{}) error {
+func (c *MongoStore) Get(collectionName string, filter utils.KeyValue, document interface{}) error {
 	collection := c.db.Collection(collectionName)
 	return collection.FindOne(c.Context, filter).Decode(document)
 }
 
 func (c *MongoStore) FindOneAndUpdate(
 	collectionName string,
-	filter KeyValue,
+	filter utils.KeyValue,
 	document interface{},
 	opt options.FindOneAndUpdateOptions) (bson.M, error) {
 	collection := c.db.Collection(collectionName)
@@ -65,19 +69,25 @@ func (c *MongoStore) FindOneAndUpdate(
 	return doc, decodeErr
 }
 
-func (c *MongoStore) Delete(collectionName string, filter KeyValue) error {
+func (c *MongoStore) Delete(collectionName string, filter utils.KeyValue) error {
 	collection := c.db.Collection(collectionName)
 	_, err := collection.DeleteOne(c.Context, filter)
 	return err
 }
 
-func (c *MongoStore) GetAll(collectionName string, filter KeyValue, documents interface{}) error {
+func (c *MongoStore) GetAll(collectionName string, filter utils.KeyValue, documents interface{}) error {
 	collection := c.db.Collection(collectionName)
 	cursor, err := collection.Find(c.Context, filter)
 	if err != nil {
 		return err
 	}
 	return cursor.All(c.Context, documents)
+}
+
+func (c *MongoStore) Replace(collectionName string, filter utils.KeyValue, document interface{}) error {
+	collection := c.db.Collection(collectionName)
+	_, err := collection.ReplaceOne(c.Context, filter, document)
+	return err
 }
 
 func NewMongoStore() *MongoStore {
