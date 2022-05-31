@@ -16,13 +16,13 @@ const (
 )
 
 type Order struct {
-	ID           primitive.ObjectID  `bson:"_id,omitempty" json:"id"`
-	Status       string              `bson:"status" json:"status" validate:"required"`
-	OrderNo      string              `bson:"orderNo" json:"orderNo"`
-	Items        []*Product          `bson:"items" json:"items"`
-	CustomerId   primitive.ObjectID  `bson:"customerId" json:"customerId"`
-	DeliveryDate primitive.Timestamp `bson:"deliveryDate" json:"deliveryDate" validate:"required"`
-	CreatedAt    primitive.Timestamp `bson:"createdAt" json:"createdAt" validate:"required"`
+	ID           primitive.ObjectID  `bson:"_id,omitempty" json:"id" mapstructure:"_id"`
+	Status       string              `bson:"status" json:"status" mapstructure:"status" validate:"required"`
+	OrderNo      string              `bson:"orderNo" json:"orderNo" mapstructure:"orderNo"`
+	Items        []Product           `bson:"items" json:"items" mapstructure:"items"`
+	CustomerId   primitive.ObjectID  `bson:"customerId" json:"customerId" mapstructure:"customerId"`
+	DeliveryDate primitive.Timestamp `bson:"deliveryDate" json:"deliveryDate" mapstructure:"deliveryDate" validate:"required"`
+	CreatedAt    primitive.Timestamp `bson:"createdAt" json:"createdAt" validate:"required" mapstructure:"createdAt"`
 }
 
 type Orders []*Order
@@ -42,7 +42,7 @@ func (o *Order) Persist(db *db.MongoStore) (*Order, error) {
 	var err error
 
 	if isNewOrder {
-		_, err = db.Insert(OrderCollectionName, o)
+		err = db.Insert(OrderCollectionName, o)
 	} else {
 		err = db.Replace(OrderCollectionName, utils.KeyValue{
 			"_id": o.ID,

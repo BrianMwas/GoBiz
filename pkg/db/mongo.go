@@ -5,7 +5,6 @@ import (
 	"context"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"sync"
@@ -28,14 +27,14 @@ func connectMongo(uri string) (*mongo.Client, error) {
 	return client, err
 }
 
-func (c *MongoStore) Insert(collectionName string, document interface{}) (string, error) {
+func (c *MongoStore) Insert(collectionName string, document interface{}) error {
 	collection := c.db.Collection(collectionName)
-	result, err := collection.InsertOne(c.Context, document)
+	_, err := collection.InsertOne(c.Context, document)
 	if err != nil {
-		return "", err
+		return err
 	}
 	// Convert the inserted id into a string
-	return result.InsertedID.(primitive.ObjectID).String(), nil
+	return nil
 }
 
 func (c *MongoStore) UpdateOne(
@@ -82,6 +81,21 @@ func (c *MongoStore) GetAll(collectionName string, filter utils.KeyValue, docume
 		return err
 	}
 	return cursor.All(c.Context, documents)
+}
+
+func (c *MongoStore) Watch(collectionName string, waitTime time.Duration) (*mongo.ChangeStream, error) {
+	collection := c.db.Collection(collectionName)
+	opts := options.ChangeStream().SetMaxAwaitTime(waitTime).SetFullDocument(options.UpdateLookup)
+	return collection.Watch(c.Context, mongo.Pipeline{bson.D{{
+		"$match",
+		bson.D{{
+			"$or", bson.A{
+				bson.D{{"operationType", "insert"}},
+				bson.D{{"operationType", "update"}},
+				bson.D{{"operationType", "replace"}},
+			},
+		}},
+	}}}, opts)
 }
 
 func (c *MongoStore) Replace(collectionName string, filter utils.KeyValue, document interface{}) error {
