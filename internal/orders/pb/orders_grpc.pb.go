@@ -23,10 +23,10 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type OrdersClient interface {
 	GetOrders(ctx context.Context, in *GetOrdersReq, opts ...grpc.CallOption) (*GetOrdersRes, error)
+	GetOrdersStream(ctx context.Context, in *EmptyReq, opts ...grpc.CallOption) (Orders_GetOrdersStreamClient, error)
 	CreateOrder(ctx context.Context, in *CreateOrderReq, opts ...grpc.CallOption) (*CreateOrderRes, error)
 	CreateCustomer(ctx context.Context, in *CreateCustomerReq, opts ...grpc.CallOption) (*CreateCustomerRes, error)
 	UpdateOrderStatus(ctx context.Context, in *UpdateOrderStatusReq, opts ...grpc.CallOption) (*UpdateOrderStatusRes, error)
-	UpdateOrder(ctx context.Context, in *UpdateOrderReq, opts ...grpc.CallOption) (*UpdateOrderRes, error)
 }
 
 type ordersClient struct {
@@ -44,6 +44,38 @@ func (c *ordersClient) GetOrders(ctx context.Context, in *GetOrdersReq, opts ...
 		return nil, err
 	}
 	return out, nil
+}
+
+func (c *ordersClient) GetOrdersStream(ctx context.Context, in *EmptyReq, opts ...grpc.CallOption) (Orders_GetOrdersStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Orders_ServiceDesc.Streams[0], "/Orders/GetOrdersStream", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &ordersGetOrdersStreamClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Orders_GetOrdersStreamClient interface {
+	Recv() (*GetOrderRes, error)
+	grpc.ClientStream
+}
+
+type ordersGetOrdersStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *ordersGetOrdersStreamClient) Recv() (*GetOrderRes, error) {
+	m := new(GetOrderRes)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (c *ordersClient) CreateOrder(ctx context.Context, in *CreateOrderReq, opts ...grpc.CallOption) (*CreateOrderRes, error) {
@@ -73,24 +105,15 @@ func (c *ordersClient) UpdateOrderStatus(ctx context.Context, in *UpdateOrderSta
 	return out, nil
 }
 
-func (c *ordersClient) UpdateOrder(ctx context.Context, in *UpdateOrderReq, opts ...grpc.CallOption) (*UpdateOrderRes, error) {
-	out := new(UpdateOrderRes)
-	err := c.cc.Invoke(ctx, "/Orders/UpdateOrder", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // OrdersServer is the server API for Orders service.
 // All implementations must embed UnimplementedOrdersServer
 // for forward compatibility
 type OrdersServer interface {
 	GetOrders(context.Context, *GetOrdersReq) (*GetOrdersRes, error)
+	GetOrdersStream(*EmptyReq, Orders_GetOrdersStreamServer) error
 	CreateOrder(context.Context, *CreateOrderReq) (*CreateOrderRes, error)
 	CreateCustomer(context.Context, *CreateCustomerReq) (*CreateCustomerRes, error)
 	UpdateOrderStatus(context.Context, *UpdateOrderStatusReq) (*UpdateOrderStatusRes, error)
-	UpdateOrder(context.Context, *UpdateOrderReq) (*UpdateOrderRes, error)
 	mustEmbedUnimplementedOrdersServer()
 }
 
@@ -101,6 +124,9 @@ type UnimplementedOrdersServer struct {
 func (UnimplementedOrdersServer) GetOrders(context.Context, *GetOrdersReq) (*GetOrdersRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOrders not implemented")
 }
+func (UnimplementedOrdersServer) GetOrdersStream(*EmptyReq, Orders_GetOrdersStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetOrdersStream not implemented")
+}
 func (UnimplementedOrdersServer) CreateOrder(context.Context, *CreateOrderReq) (*CreateOrderRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateOrder not implemented")
 }
@@ -109,9 +135,6 @@ func (UnimplementedOrdersServer) CreateCustomer(context.Context, *CreateCustomer
 }
 func (UnimplementedOrdersServer) UpdateOrderStatus(context.Context, *UpdateOrderStatusReq) (*UpdateOrderStatusRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateOrderStatus not implemented")
-}
-func (UnimplementedOrdersServer) UpdateOrder(context.Context, *UpdateOrderReq) (*UpdateOrderRes, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateOrder not implemented")
 }
 func (UnimplementedOrdersServer) mustEmbedUnimplementedOrdersServer() {}
 
@@ -142,6 +165,27 @@ func _Orders_GetOrders_Handler(srv interface{}, ctx context.Context, dec func(in
 		return srv.(OrdersServer).GetOrders(ctx, req.(*GetOrdersReq))
 	}
 	return interceptor(ctx, in, info, handler)
+}
+
+func _Orders_GetOrdersStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(EmptyReq)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(OrdersServer).GetOrdersStream(m, &ordersGetOrdersStreamServer{stream})
+}
+
+type Orders_GetOrdersStreamServer interface {
+	Send(*GetOrderRes) error
+	grpc.ServerStream
+}
+
+type ordersGetOrdersStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *ordersGetOrdersStreamServer) Send(m *GetOrderRes) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _Orders_CreateOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -198,24 +242,6 @@ func _Orders_UpdateOrderStatus_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Orders_UpdateOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateOrderReq)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(OrdersServer).UpdateOrder(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/Orders/UpdateOrder",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(OrdersServer).UpdateOrder(ctx, req.(*UpdateOrderReq))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // Orders_ServiceDesc is the grpc.ServiceDesc for Orders service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -239,11 +265,13 @@ var Orders_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "UpdateOrderStatus",
 			Handler:    _Orders_UpdateOrderStatus_Handler,
 		},
+	},
+	Streams: []grpc.StreamDesc{
 		{
-			MethodName: "UpdateOrder",
-			Handler:    _Orders_UpdateOrder_Handler,
+			StreamName:    "GetOrdersStream",
+			Handler:       _Orders_GetOrdersStream_Handler,
+			ServerStreams: true,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
 	Metadata: "orders.proto",
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"awesomeProject/internal/orders"
 	"awesomeProject/internal/orders/pb"
+	"awesomeProject/pkg/cache"
 	"awesomeProject/pkg/db"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -17,18 +18,20 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "9100"
+		port = "7100"
 	}
-
+	log.Warning("Our current port is ", port)
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"new error": err,
 		}).Info("Listener failed")
 	}
+	cache := cache.InitRedisCache()
+
 	mongo := db.NewMongoStore()
 	s := grpc.NewServer()
-	server := orders.NewOrderServer(&log.Logger{}, mongo)
+	server := orders.NewOrderServer(&log.Logger{}, mongo, cache)
 	reflection.Register(s)
 	pb.RegisterOrdersServer(s, server)
 	go func() {

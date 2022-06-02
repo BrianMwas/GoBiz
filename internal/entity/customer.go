@@ -31,7 +31,7 @@ func (c *Customer) Persist(db *db.MongoStore) (*Customer, error) {
 	isNewCustomer := c.CreatedAt.IsZero()
 	var err error
 	if isNewCustomer {
-		_, err = db.Insert(CustomerCollectionName, c)
+		err = db.Insert(CustomerCollectionName, c)
 	} else {
 		err = db.Replace(CustomerCollectionName, utils.KeyValue{"_id": c.ID}, c)
 	}
