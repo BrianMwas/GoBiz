@@ -98,5 +98,4 @@ service Orders {
   rpc CreateOrder(CreateOrderReq) returns (CreateOrderRes) {}
   rpc CreateCustomer(CreateCustomerReq) returns (CreateCustomerRes) {}
   rpc UpdateOrderStatus(UpdateOrderStatusReq) returns (UpdateOrderStatusRes) {}
-  rpc UpdateOrder(UpdateOrderReq) returns (UpdateOrderRes) {}
 }

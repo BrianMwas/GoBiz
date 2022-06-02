@@ -3,7 +3,9 @@ package entity
 import (
 	"awesomeProject/pkg/db"
 	"awesomeProject/pkg/utils"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type OrderStatus string
@@ -55,6 +57,22 @@ func (o *Order) Persist(db *db.MongoStore) (*Order, error) {
 func (o *Order) Get(db *db.MongoStore, filter utils.KeyValue) (*Order, error) {
 	err := db.Get(OrderCollectionName, filter, o)
 	return o, err
+}
+
+func (o *Order) UpdateOne(db *db.MongoStore, id string, status string) (int, error) {
+	opts := options.Update().SetUpsert(true)
+	objID, idErr := primitive.ObjectIDFromHex(id)
+	if idErr != nil {
+		return -1, idErr
+	}
+	filter := bson.M{"_id": bson.M{"$eq": objID}}
+	update := bson.M{"$set": bson.M{"status": status}}
+
+	result, err := db.UpdateOne(OrderCollectionName, filter, update, options.UpdateOptions{
+		Upsert: opts.Upsert,
+	})
+
+	return int(result.ModifiedCount), err
 }
 
 func (os Orders) GetAll(db *db.MongoStore, filter utils.KeyValue) (Orders, error) {

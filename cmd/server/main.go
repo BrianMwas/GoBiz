@@ -18,9 +18,9 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "9100"
+		port = "7100"
 	}
-
+	log.Warning("Our current port is ", port)
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.WithFields(log.Fields{

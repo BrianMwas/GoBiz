@@ -39,12 +39,12 @@ func (c *MongoStore) Insert(collectionName string, document interface{}) error {
 
 func (c *MongoStore) UpdateOne(
 	collectionName string,
-	filter utils.KeyValue,
+	filter interface{},
 	document interface{},
-	opt options.UpdateOptions) error {
+	opt options.UpdateOptions) (*mongo.UpdateResult, error) {
 	collection := c.db.Collection(collectionName)
-	_, err := collection.UpdateOne(c.Context, filter, document, &opt)
-	return err
+	r, err := collection.UpdateOne(c.Context, filter, document, &opt)
+	return r, err
 }
 
 func (c *MongoStore) Get(collectionName string, filter utils.KeyValue, document interface{}) error {

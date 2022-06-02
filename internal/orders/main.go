@@ -103,7 +103,7 @@ func (s *OrderServer) GetOrders(ctx context.Context, req *pb2.GetOrdersReq) (*pb
 }
 
 func (s *OrderServer) GetOrdersStream(req *pb2.EmptyReq, stream pb2.Orders_GetOrdersStreamServer) error {
-	orderStream, err := s.Store.Watch(entity.OrderCollectionName, 2*time.Second)
+	orderStream, err := s.Store.Watch(entity.OrderCollectionName, 24*time.Hour)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (s *OrderServer) GetOrdersStream(req *pb2.EmptyReq, stream pb2.Orders_GetOr
 		}
 		var o entity.Order
 
-		if opType == "insert" {
+		if opType == "insert" || opType == "update" {
 			logrus.Info("Document ", event["fullDocument"])
 			err := mapstructure.Decode(event["fullDocument"], &o)
 			if err != nil {
@@ -277,54 +277,18 @@ func (s *OrderServer) CreateCustomer(ctx context.Context, req *pb2.CreateCustome
 
 func (s *OrderServer) UpdateOrderStatus(ctx context.Context, req *pb2.UpdateOrderStatusReq) (*pb2.UpdateOrderStatusRes, error) {
 	orderId := req.GetId()
-
-	order, err := entity.NewOrder().Get(s.Store, utils.KeyValue{"_id": orderId})
-
+	logrus.Info("We got called ", req.GetId())
+	m, err := entity.NewOrder().UpdateOne(s.Store, orderId, req.GetStatus())
+	logrus.Warning("Matched count ", m)
 	if err != nil {
 		logrus.Println("We failed getting order", err)
-	}
-	order.Status = req.GetStatus()
-	_, persistErr := order.Persist(s.Store)
-
-	if persistErr != nil {
-		return nil, persistErr
+		return nil, err
 	}
 
 	return &pb2.UpdateOrderStatusRes{
 		Success: true,
 		Message: "Update Successful",
 	}, nil
-}
-
-func (s *OrderServer) UpdateOrder(ctx context.Context, req *pb2.UpdateOrderReq) (*pb2.UpdateOrderRes, error) {
-	updateOrder := req.GetOrder()
-	order, err := entity.NewOrder().Get(s.Store, utils.KeyValue{
-		"_id": updateOrder.GetId(),
-	})
-
-	if err != nil {
-		return nil, err
-	}
-	var products = make([]entity.Product, 0)
-	for _, item := range updateOrder.Items {
-		newProduct := entity.NewProduct()
-
-		newProduct.Price = item.GetPrice()
-		newProduct.Name = item.GetName()
-		newProduct.Description = item.GetDescription()
-		newProduct.Name = item.GetSku()
-		products = append(products, newProduct)
-	}
-
-	order.Items = products
-
-	_, persistErr := order.Persist(s.Store)
-
-	if persistErr != nil {
-		return nil, persistErr
-	}
-
-	return &pb2.UpdateOrderRes{Order: req.Order}, nil
 }
 
 func (s *OrderServer) MustEmbedUnimplementedOrdersServer() {}
